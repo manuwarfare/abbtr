@@ -269,10 +269,10 @@ func createRule(name, command string) {
     // Create the script in ~/.local/bin using os.WriteFile
     scriptPath := filepath.Join(os.Getenv("HOME"), ".local/bin", name)
     scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s.%%N)
+start=$(date +%%s)
 %s
-end=$(date +%%s.%%N)
-duration=$(echo "$end - $start" | bc)
+end=$(date +%%s)
+duration=$((end - start))
 echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
 `, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
@@ -375,9 +375,10 @@ func deleteAllRules() error {
 }
 
 func updateRule(name, command string) {
+
     // Initialize configuration file
     err := initConfigFile()
-    if err != nil {
+    if (err != nil) {
         fmt.Printf("Error initializing config file: %v\n", err)
         return
     }
@@ -428,10 +429,10 @@ func updateRule(name, command string) {
     // Create or update the script file
     scriptPath := filepath.Join(binDir, name)
     scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s.%%N)
+start=$(date +%%s)
 %s
-end=$(date +%%s.%%N)
-duration=$(echo "$end - $start" | bc)
+end=$(date +%%s)
+duration=$((end - start))
 echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] UPDATE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
 `, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
@@ -475,24 +476,17 @@ func showRule(name string) {
 }
 
 func runCommands(commands []string, bottleValues map[string]string) {
-    var processedCommands []string
-    for _, cmd := range commands {
+    for i, cmd := range commands {
         rule, err := getCommand(cmd)
         if err != nil {
             fmt.Printf("Error: %s\n", err)
             continue
         }
         processedRule := processBottles(rule, bottleValues)
-        processedCommands = append(processedCommands, processedRule)
-    }
-    if len(processedCommands) == 0 {
-        fmt.Println("No rules found to execute.")
-        return
-    }
-    for i, command := range processedCommands {
+
         start := time.Now()
-        fmt.Printf("Executing command %d: %s\n", i+1, command)
-        err := executeCommand(command)
+        fmt.Printf("Executing command %d: %s\n", i+1, processedRule)
+        err = executeCommand(processedRule)
         duration := time.Since(start)
 
         result := "Success"
@@ -501,7 +495,7 @@ func runCommands(commands []string, bottleValues map[string]string) {
             fmt.Printf("Error executing command %d: %s\n", i+1, err)
         }
 
-        logDetails := fmt.Sprintf("Command: \"%s\", Result: %s in %v", command, result, duration)
+        logDetails := fmt.Sprintf("Command: \"%s\", Result: %s, Duration: %v", processedRule, result, duration)
         err = logEvent("EXECUTE_RULE", logDetails)
         if err != nil {
             fmt.Printf("Warning: Failed to log event: %v\n", err)
@@ -532,7 +526,6 @@ func getCommand(name string) (string, error) {
 }
 
 func importRulesFromFile(filePath string) {
-    // Start timing
     start := time.Now()
 
     // Open the file
@@ -600,14 +593,14 @@ func importRulesFromFile(filePath string) {
         // Create the script immediately
         scriptPath := filepath.Join(filepath.Join(os.Getenv("HOME"), ".local/bin"), name)
         scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s.%%N)
+start=$(date +%%s)
 %s
-end=$(date +%%s.%%N)
-duration=$(echo "$end - $start" | bc)
+end=$(date +%%s)
+duration=$((end - start))
 echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
 `, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
-        err := os.WriteFile(scriptPath, []byte(scriptContent), 0755)
+        err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
         if err != nil {
             fmt.Printf("Error creating script for rule %s: %v\n", name, err)
         }
@@ -627,9 +620,8 @@ echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | aw
     }
 
     // End timing
-    end := time.Now()
-    duration := end.Sub(start).Seconds()
-    fmt.Printf("Rules imported successfully in %.2f seconds.\n", duration)
+    duration := time.Since(start)
+    fmt.Printf("Rules imported successfully in %.2f seconds.\n", duration.Seconds())
 }
 
 func createScriptForRule(name, command string) {
@@ -1032,7 +1024,7 @@ func syncRulesWithScripts() error {
                     break
                 }
             }
-            if !found {
+            if (!found) {
                 scriptPath := filepath.Join(rulesDir, file.Name())
                 err := os.Remove(scriptPath)
                 if err != nil {
@@ -1052,10 +1044,10 @@ func syncRulesWithScripts() error {
 
         scriptPath := filepath.Join(rulesDir, rule)
         scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s.%%N)
+start=$(date +%%s)
 %s
-end=$(date +%%s.%%N)
-duration=$(echo "$end - $start" | bc)
+end=$(date +%%s)
+duration=$((end - start))
 echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
 `, command, os.Getenv("USER"), rule, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
