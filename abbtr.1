@@ -1,0 +1,98 @@
+.TH ABBTR 1 "June 2024" "Version 1.0.58" "abbtr"
+.SH NAME
+abbtr \- Abbreviator for long commands in Linux terminal
+.SH SYNOPSIS
+.B abbtr
+[\fIoptions\fP] [\fIusage\fP] ...
+.SH DESCRIPTION
+.B abbtr
+comes as an alternative to the default "alias" command. It's a simple program designed to abbreviate long prompts in the GNU/Linux terminal. You can easily set rules, delete them, list them, and update them with a clear set of parameters. It should be functional in any GNU/Linux distribution.
+.SH OPTIONS
+.TP
+.B \-l
+List stored rules.
+.TP
+.B \-n \fI<name> '<command>'\fP
+Create a new rule with the specified \fIname\fP and \fIcommand\fP.
+.TP
+.B \-i \fI<file path>\fP
+Import rules from a local file.
+.TP
+.B \-e
+Export rules to a file.
+.TP
+.B \-b=\fI<variable:value>\fP
+Predefine the value of a bottle.
+.TP
+.B \-r \fI<name>\fP
+Delete an existing rule by \fIname\fP.
+.TP
+.B \-r a
+Delete all rules.
+.TP
+.B \-c \fI<name> '<command'\fP>
+Update the command of an existing rule specified by \fIname\fP.
+.TP
+.B \-ln \fI<name>\fP
+Show the contents of a specific rule by \fIname\fP.
+.TP
+.B \-h
+Show this help message.
+.TP
+.B \-v
+Show the program version.
+.SH USAGE EXAMPLES
+Create a new rule:
+.B abbtr \-n update 'sudo apt update -y'
+.P
+Then run:
+.B update
+.P
+Syntax for feeding bottles:
+.B b%('variable')%b
+.SH USER FILES
+.B Config file:
+located at ~/.config/abbtr/abbtr.conf
+.P
+.B Log file:
+located at ~/.local/share/abbtr/abbtr.log
+.P
+.SH BUGS
+.B abbtr
+does not have any locking mechanisms yet.
+.P
+If you discover any other bugs in \fBabbtr\fP, please contact the author.
+.SH SEE ALSO
+.B abbtr-info(1),
+.B abbtr User Manual
+(/usr/share/doc/abbtr/abbtr.1).
+.P
+Packaging tools:
+.B debhelper(7),
+.B dh_make(8),
+.B dpkg-buildpackage(1).
+.SH AUTHORS
+Originally written by Manuel Guerra <ar.manuelguerra@gmail.com>.
+.P
+Please use the email address <ar.manuelguerra@gmail.com> for abbtr-related comments.
+.SH COPYRIGHT
+Copyright © 2024 Manuel Guerra
+.P
+License: GPL-3+
+.PP
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+.PP
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+.PP
+On Debian systems, the complete text of the GNU General
+Public License version 3 can be found in `/usr/share/common-licenses/GPL-3'.
+
