@@ -21,7 +21,7 @@ const (
     configFileName = "abbtr.conf"
     logDir = "/.local/share/abbtr/"
     logFileName = "abbtr.log"
-    VERSION = "1.0.58"
+    VERSION = "1.0.1"
 )
 
 var configFile = filepath.Join(os.Getenv("HOME"), configDir, configFileName)
