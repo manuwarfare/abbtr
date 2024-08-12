@@ -221,17 +221,20 @@ func listRules() {
 }
 
 func createRule(name, command string) {
+    // Read existing lines from the configuration file
     lines, err := readLines(configFile)
     if err != nil {
         fmt.Println("Error reading the configuration file:", err)
         return
     }
 
+    // Check if the rule name is reserved
     if isReservedName(name) {
         fmt.Printf("Unable to create a rule with this name. '%s' is a reserved command name.\n", name)
         return
     }
 
+    // Check if the rule already exists and ask if it should be overwritten
     found := false
     for i, line := range lines {
         if strings.HasPrefix(line, name+" = ") {
@@ -248,17 +251,19 @@ func createRule(name, command string) {
         }
     }
 
+    // If the rule was not found, add it to the configuration
     if !found {
         lines = append(lines, fmt.Sprintf("%s = %s", name, command))
     }
 
+    // Write the updated lines to the configuration file
     err = writeLines(configFile, lines)
     if err != nil {
         fmt.Println("Error writing to the configuration file:", err)
         return
     }
 
-    // Create the directory ~/.local/bin if it does not exist
+    // Create the ~/.local/bin directory if it does not exist
     binDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
     err = os.MkdirAll(binDir, 0755)
     if err != nil {
@@ -266,15 +271,12 @@ func createRule(name, command string) {
         return
     }
 
-    // Create the script in ~/.local/bin using os.WriteFile
-    scriptPath := filepath.Join(os.Getenv("HOME"), ".local/bin", name)
-    scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s)
-%s
-end=$(date +%%s)
-duration=$((end - start))
-echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
-`, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
+    // Escape double quotes in the command
+    escapedCommand := strings.Replace(command, `"`, `\"`, -1)
+
+    // Create the script in ~/.local/bin using the escaped command
+    scriptPath := filepath.Join(binDir, name)
+    scriptContent := createScriptContent(name, escapedCommand)
 
     err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
     if err != nil {
@@ -288,6 +290,7 @@ echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | aw
         fmt.Printf("Warning: Failed to log event: %v\n", err)
     }
 
+    // Success message
     fmt.Printf("Rule '%s' successfully added. You can now use it directly by typing '%s'\n", name, name)
 }
 
@@ -378,7 +381,7 @@ func updateRule(name, command string) {
 
     // Initialize configuration file
     err := initConfigFile()
-    if (err != nil) {
+    if err != nil {
         fmt.Printf("Error initializing config file: %v\n", err)
         return
     }
@@ -426,15 +429,12 @@ func updateRule(name, command string) {
         return
     }
 
-    // Create or update the script file
+    // Escape quotes in the command
+    escapedCommand := strings.Replace(command, `"`, `\"`, -1)
+
+    // Create or update the script file using the escaped command
     scriptPath := filepath.Join(binDir, name)
-    scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s)
-%s
-end=$(date +%%s)
-duration=$((end - start))
-echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] UPDATE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
-`, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
+    scriptContent := createScriptContent(name, escapedCommand)
 
     err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
     if err != nil {
@@ -597,7 +597,7 @@ start=$(date +%%s)
 %s
 end=$(date +%%s)
 duration=$((end - start))
-echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
+echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: '%s', Result: Success, Duration: ${duration}s" >> %s
 `, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 
         err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
@@ -818,33 +818,43 @@ func writeToFile(filePath string, content []string) error {
 }
 
 func executeCommand(command string) error {
+    // Record the start time of the command execution
     start := time.Now()
 
+    // Prepare the command for execution
     cmd := exec.Command("bash", "-c", command)
     cmd.Stdout = os.Stdout
     cmd.Stderr = os.Stderr
     cmd.Stdin = os.Stdin
 
+    // Run the command
     err := cmd.Run()
 
+    // Calculate the duration of the command execution
     duration := time.Since(start)
     result := "Success"
     if err != nil {
         result = fmt.Sprintf("Error: %v", err)
     }
 
-    logDetails := fmt.Sprintf("Command: \"%s\", Result: %s, Duration: %v", command, result, duration)
+    // Format the log details
+    logDetails := fmt.Sprintf("Command: %q, Result: %s, Duration: %v", command, result, duration)
+
+    // Log the execution event
     logErr := logEvent("EXECUTE_RULE", logDetails)
     if logErr != nil {
         fmt.Printf("Warning: Failed to log event: %v\n", logErr)
     }
 
+    // Handle any errors that occurred during command execution
     if err != nil {
         if exitError, ok := err.(*exec.ExitError); ok {
             return fmt.Errorf("command failed with exit code %d: %v", exitError.ExitCode(), err)
         }
         return fmt.Errorf("failed to execute command: %v", err)
     }
+
+    // Return nil if the command was executed successfully
     return nil
 }
 
@@ -903,24 +913,29 @@ func writeLines(filename string, lines []string) error {
 func logEvent(eventType, details string) error {
     logPath := filepath.Join(os.Getenv("HOME"), logDir, logFileName)
 
+    // Create the log directory if it does not exist
     err := os.MkdirAll(filepath.Dir(logPath), 0755)
     if err != nil {
         return fmt.Errorf("failed to create log directory: %v", err)
     }
 
+    // Open the log file in append mode, create it if it doesn't exist
     file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
     if err != nil {
         return fmt.Errorf("failed to open log file: %v", err)
     }
     defer file.Close()
 
+    // Gather necessary information for the log
     user := os.Getenv("USER")
     timestamp := time.Now().Format("2006-01-02 15:04:05")
     ip := getIP()
 
-    logMessage := fmt.Sprintf("[%s] %s %s at %s | %s\n", // i.e User:%s
-                              timestamp, eventType, user, ip, details)
+    // Create the log message
+    logMessage := fmt.Sprintf("[%s] %s %s at %s | %s\n",
+        timestamp, eventType, user, ip, details)
 
+    // Write the log message to the file
     _, err = file.WriteString(logMessage)
     if err != nil {
         return fmt.Errorf("failed to write to log file: %v", err)
@@ -1000,6 +1015,7 @@ func writeLinesWithLock(filename string, lines []string) error {
 }
 
 func syncRulesWithScripts() error {
+    // Retrieve all the existing rules
     rules := getAllRules()
     rulesDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
 
@@ -1015,6 +1031,7 @@ func syncRulesWithScripts() error {
         return fmt.Errorf("failed to read rules directory: %v", err)
     }
 
+    // Loop through each file in the rules directory
     for _, file := range files {
         if !file.IsDir() {
             found := false
@@ -1024,7 +1041,8 @@ func syncRulesWithScripts() error {
                     break
                 }
             }
-            if (!found) {
+            // Remove orphaned scripts
+            if !found {
                 scriptPath := filepath.Join(rulesDir, file.Name())
                 err := os.Remove(scriptPath)
                 if err != nil {
@@ -1036,21 +1054,23 @@ func syncRulesWithScripts() error {
 
     // Create or update scripts for existing rules
     for _, rule := range rules {
+        // Get the command associated with the rule
         command, err := getCommand(rule)
         if err != nil {
             fmt.Printf("Error getting command for rule %s: %v\n", rule, err)
             continue
         }
 
-        scriptPath := filepath.Join(rulesDir, rule)
-        scriptContent := fmt.Sprintf(`#!/bin/bash
-start=$(date +%%s)
-%s
-end=$(date +%%s)
-duration=$((end - start))
-echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: "%s", Result: Success, Duration: ${duration}s" >> %s
-`, command, os.Getenv("USER"), rule, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
+        // Escape quotes in the command
+        escapedCommand := strings.Replace(command, `"`, `\"`, -1)
 
+        // Create the script content using the escaped command
+        scriptContent := createScriptContent(rule, escapedCommand)
+
+        // Define the script path
+        scriptPath := filepath.Join(rulesDir, rule)
+
+        // Write the script content to the script file
         err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
         if err != nil {
             fmt.Printf("Error creating/updating script for rule %s: %v\n", rule, err)
@@ -1119,4 +1139,14 @@ func checkPath() {
             fmt.Println("Please type your option (y/n):")
         }
     }
+}
+
+func createScriptContent(name, command string) string {
+    return fmt.Sprintf(`#!/bin/bash
+start=$(date +%%s)
+%s
+end=$(date +%%s)
+duration=$((end - start))
+echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | awk '{print $1}') | Rule: %s, Command: '%s', Result: Success, Duration: ${duration}s" >> %s
+`, command, os.Getenv("USER"), name, command, filepath.Join(os.Getenv("HOME"), logDir, logFileName))
 }
