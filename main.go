@@ -55,6 +55,9 @@ func main() {
         log.Fatalf("Failed to initialize config file: %v", err)
     }
 
+    // Verify if ~/.local/bin is in the PATH
+    checkPath()
+
     // Call for syncRulesWithScripts
     err = syncRulesWithScripts()
     if err != nil {
@@ -1063,4 +1066,65 @@ echo "[$(date +'%%Y-%%m-%%d %%H:%%M:%%S')] EXECUTE_RULE %s at $(hostname -I | aw
     }
 
     return nil
+}
+
+func checkPath() {
+    path := os.Getenv("PATH")
+    localBin := filepath.Join(os.Getenv("HOME"), ".local/bin")
+
+    // Check if ~/.local/bin is already in PATH
+    if strings.Contains(path, localBin) {
+        return // Do nothing if it's already in PATH
+    }
+
+    // Warn the user if ~/.local/bin is not in PATH
+    reader := bufio.NewReader(os.Stdin)
+    for {
+        fmt.Printf("~/.local/bin is not in your PATH, do you want to add it? This is necessary to locally run your rules (y/n): ")
+        response, _ := reader.ReadString('\n')
+        response = strings.TrimSpace(strings.ToLower(response))
+
+        if response == "y" {
+            // Add ~/.local/bin to the PATH and update the profile file
+            fmt.Println("Adding ~/.local/bin to your PATH...")
+
+            // Determine the shell profile file based on the user's shell
+            shell := os.Getenv("SHELL")
+            var profileFile string
+
+            if strings.Contains(shell, "bash") {
+                profileFile = filepath.Join(os.Getenv("HOME"), ".bashrc")
+            } else if strings.Contains(shell, "zsh") {
+                profileFile = filepath.Join(os.Getenv("HOME"), ".zshrc")
+            } else if strings.Contains(shell, "fish") {
+                profileFile = filepath.Join(os.Getenv("HOME"), ".config/fish/config.fish")
+            } else {
+                // Default to .profile for unknown shells
+                profileFile = filepath.Join(os.Getenv("HOME"), ".profile")
+            }
+
+            // Append the export command to the profile file
+            f, err := os.OpenFile(profileFile, os.O_APPEND|os.O_WRONLY, 0644)
+            if err != nil {
+                fmt.Printf("Error opening profile file: %v\n", err)
+                return
+            }
+            defer f.Close()
+
+            if _, err = f.WriteString(fmt.Sprintf("\nexport PATH=%s:$PATH\n", localBin)); err != nil {
+                fmt.Printf("Error writing to profile file: %v\n", err)
+                return
+            }
+
+            fmt.Printf("~/.local/bin has been added to your PATH. Please restart your terminal or run 'source %s' to apply the changes.\n", profileFile)
+            break
+
+        } else if response == "n" {
+            fmt.Println("You can continue using abbtr, but your rules will not run.")
+            break
+
+        } else {
+            fmt.Println("Please type your option (y/n):")
+        }
+    }
 }
