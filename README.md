@@ -45,11 +45,11 @@ To install Golang in your system run
   `sudo dnf install golang` or `sudo apt install golang` depending on your GNU/Linux distribution.
 
 
-:question **HOW IT FUNCTIONS?**
+:question: **HOW IT FUNCTIONS?**
 
 When you create a new rule it is saved as a bash script in ~/.local/bin and is executed every time you invoke it by its name.
 
-:file_folder **AFFECTED LOCATIONS**
+:file_folder: **AFFECTED LOCATIONS**
 
  **~/.config/abbtr:** this directory is used to store the config file "abbtr.conf".
 
