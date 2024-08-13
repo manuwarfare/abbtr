@@ -177,7 +177,7 @@ func showHelp() {
     fmt.Println(" ")
     fmt.Println("For further help go to https://github.com/manuwarfare/abbtr")
     fmt.Println("Author: Manuel Guerra")
-    fmt.Printf("V %s | This software is licensed under the GNU GPLv3\n", VERSION)
+    fmt.Printf("V %s | Software licensed under the BSD 3-Clause License\n", VERSION)
 }
 
 func listRules() {

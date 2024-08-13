@@ -45,6 +45,18 @@ To install Golang in your system run
   `sudo dnf install golang` or `sudo apt install golang` depending on your GNU/Linux distribution.
 
 
+:question **HOW IT FUNCTIONS?**
+
+When you create a new rule it is saved as a bash script in ~/.local/bin and is executed every time you invoke it by its name.
+
+:file_folder **AFFECTED LOCATIONS**
+
+ **~/.config/abbtr:** this directory is used to store the config file "abbtr.conf".
+
+ **~/.local/share/abbtr:** this directory is used to store the registry log "abbtr.log".
+
+ **~/.local/bin:** this directory is used to store the rule-scripts.
+
 :pencil: **CREATING RULES**
 
 First step after install the program is run `abbtr -h` to know about how the script functions. Some examples to create rules in a Fedora system terminal:
