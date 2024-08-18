@@ -21,7 +21,7 @@ const (
     configFileName = "abbtr.conf"
     logDir = "/.local/share/abbtr/"
     logFileName = "abbtr.log"
-    VERSION = "1.0.2"
+    VERSION = "1.0.3"
 )
 
 var configFile = filepath.Join(os.Getenv("HOME"), configDir, configFileName)
@@ -264,7 +264,7 @@ func createRule(name, command string) {
     }
 
     // Create the ~/.local/bin directory if it does not exist
-    binDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
+    binDir := filepath.Join(os.Getenv("HOME"), ".local", "bin")
     err = os.MkdirAll(binDir, 0755)
     if err != nil {
         fmt.Printf("Error creating directory %s: %v\n", binDir, err)
@@ -295,6 +295,7 @@ func createRule(name, command string) {
 }
 
 func deleteRule(name string) {
+    // Read existing lines from the configuration file
     lines, err := readLines(configFile)
     if err != nil {
         fmt.Println("Error reading the configuration file:", err)
@@ -323,7 +324,7 @@ func deleteRule(name string) {
     }
 
     // Remove the corresponding script in ~/.local/bin
-    scriptPath := filepath.Join(os.Getenv("HOME"), ".local/bin", name)
+    scriptPath := filepath.Join(os.Getenv("HOME"), ".local", "bin", name)
     err = os.Remove(scriptPath)
     if err != nil && !os.IsNotExist(err) {
         fmt.Printf("Error deleting script: %v\n", err)
@@ -1017,7 +1018,7 @@ func writeLinesWithLock(filename string, lines []string) error {
 func syncRulesWithScripts() error {
     // Retrieve all the existing rules
     rules := getAllRules()
-    rulesDir := filepath.Join(os.Getenv("HOME"), ".local/bin")
+    rulesDir := filepath.Join(os.Getenv("HOME"), ".local", "bin")
 
     // Create the directory if it doesn't exist
     err := os.MkdirAll(rulesDir, 0755)
@@ -1082,17 +1083,27 @@ func syncRulesWithScripts() error {
 
 func checkPath() {
     path := os.Getenv("PATH")
-    localBin := filepath.Join(os.Getenv("HOME"), ".local/bin")
+    localBin := filepath.Join(os.Getenv("HOME"), ".local", "bin")
 
-    // Check if ~/.local/bin is already in PATH
-    if strings.Contains(path, localBin) {
-        return // Do nothing if it's already in PATH
+    // Split the PATH into individual directories
+    pathDirs := strings.Split(path, ":")
+
+    // Check if ~/.local/bin is exactly in the list of PATH directories
+    found := false
+    for _, dir := range pathDirs {
+        if filepath.Clean(dir) == localBin {
+            found = true
+            break
+        }
     }
 
-    // Warn the user if ~/.local/bin is not in PATH
+    if found {
+        return // ~/.local/bin is already in the PATH
+    }
+
     reader := bufio.NewReader(os.Stdin)
     for {
-        fmt.Printf("~/.local/bin is not in your PATH, do you want to add it? This is necessary to locally run your rules (y/n): ")
+        fmt.Printf("~/.local/bin is not in your PATH. Do you want to add it? This is necessary to locally run your rules (y/n): ")
         response, _ := reader.ReadString('\n')
         response = strings.TrimSpace(strings.ToLower(response))
 
@@ -1116,7 +1127,7 @@ func checkPath() {
             }
 
             // Append the export command to the profile file
-            f, err := os.OpenFile(profileFile, os.O_APPEND|os.O_WRONLY, 0644)
+            f, err := os.OpenFile(profileFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
             if err != nil {
                 fmt.Printf("Error opening profile file: %v\n", err)
                 return
